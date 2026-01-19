@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int      @id @default(autoincrement())
+  telegramId  BigInt   @unique
+  displayName String?
+  steamId     String?  @unique
+  tsAlias     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Group {
+  id              Int      @id @default(autoincrement())
+  telegramChatId  BigInt   @unique
+  pinnedMessageId Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ChatMessage {
+  id         Int      @id @default(autoincrement())
+  chatId     BigInt   // Telegram chat ID
+  messageId  Int      // Telegram message ID
+  userId     BigInt   // Telegram user ID
+  username   String?  // Telegram username
+  content    String   // Message text content
+  timestamp  DateTime @default(now())
+
+  @@index([chatId, timestamp])
+}
+
+model GrokChatSettings {
+  id                Int      @id @default(autoincrement())
+  chatId            BigInt   @unique // Telegram chat ID
+  enabled           Boolean  @default(false)
+  lastResponseTime  DateTime? // Track cooldown
+  cooldownMinutes   Int      @default(7) // Configurable per-chat
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model GrokApiKey {
+  id        Int      @id @default(autoincrement())
+  apiKey    String   // Stored API key
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Generic AI Provider API Keys (supports multiple providers)
+model AIProviderKey {
+  id        Int      @id @default(autoincrement())
+  provider  String   // 'grok', 'openai', etc.
+  apiKey    String   // Stored API key
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([provider, enabled])
+}
+
+// Generic AI Chat Settings (supports multiple providers)
+model AIChatSettings {
+  id                Int       @id @default(autoincrement())
+  chatId            BigInt    @unique
+  enabled           Boolean   @default(false)
+  lastResponseTime  DateTime?
+  cooldownMinutes   Int       @default(7)
+  lastUsedProvider  String?   // Track which provider was last used
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Global AI Provider Configuration
+model AIProviderConfig {
+  id               Int      @id @default(autoincrement())
+  key              String   @unique  // Configuration key (e.g., "provider_priority")
+  value            String   // Configuration value (e.g., "grok,openai")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// User Facts extracted from conversations
+model UserFact {
+  id              Int      @id @default(autoincrement())
+  userId          BigInt   // Telegram user ID
+  chatId          BigInt   // Chat context where fact was learned
+  username        String?  // Username for reference
+  factType        String   // Category: interest, preference, personal_info, skill, opinion, etc.
+  fact            String   // The actual fact (e.g., "plays CS2 competitively")
+  extractedFrom   String?  // Original message that generated this fact
+  confidence      Float    @default(1.0) // Confidence score 0.0-1.0
+  isActive        Boolean  @default(true) // Can be disabled if outdated
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId, chatId])
+  @@index([chatId, isActive])
+}
